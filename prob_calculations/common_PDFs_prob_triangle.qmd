@@ -1,0 +1,278 @@
+---
+title: "Triangle Graphs with various distributions"
+format: html
+editor: visual
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+```
+
+## Calculating the Probability of a Triangle For Continuous Distributions
+
+Written below are practical applications of Corollary 10 with parameters relative to the chosen distribution. The formula for finding the probability of a Mapper graph containing a triangle can be applied to various distributions. Specifically, the probability is calculated when n data points are iid from a PDF, and a one-dimensional lens function is chosen with trivial clustering. Utilizing calculations from the Giotto-TDA software, 3 cover intervals are selected.
+
+The endpoints for each interval are calculated using the minimum and maximums of the distribution and the selected gain. For distributions with unbounded supports, the minimum and maximum were truncated by the 0.1st and 99.99th quantiles, respectively. A function is then defined that calculates the probability $P(e)$ of containing a triangle, or a random sample belonging to all three intervals in the cover. The probability mass for each interval is then calculated from the CDF which is then used in finding the true probability of containing a triangle. Each graph plots this probability as a function of the gain, or the margin of overlap between the three intervals, from 0.5 to 1. The graphs show how the probability of containing a triangle changes as the overlap increases for each distribution.
+
+## Normal Distribution
+
+```{r}
+gain_3points_norm <- function(g){
+min <- qnorm(0.001)
+max <- qnorm(0.999)
+left_ep = 1/(3-2*g)*(min+2*max-2*g*max)
+right_ep = 1/(3-2*g)*(2*min-2*g*min+max)
+term1 = pnorm(left_ep)-pnorm(min)
+term2 = pnorm(max)-pnorm(right_ep)
+num = term1 + term2
+denom = pnorm(max)-pnorm(min)
+prob_int = 1 - (num/denom)
+return(prob_int)
+}
+```
+
+```{r}
+  df <- data.frame(
+  x <- seq(0.5, 1, 0.01),
+  y1 <- gain_3points_norm(x)
+  )
+  colors <- c("Norm(0,1)" = "#E69F00")
+  ggplot(df, aes(x)) +
+  geom_line(aes(y=y1, color = "Norm(0,1)")) +
+  labs(x = "Gain (g)",
+  y = "P(E)",
+  colour = "Legend",
+  title = "Normal Distribution") +
+  scale_color_manual(values = colors) +
+  theme_bw()
+```
+
+## Uniform Distribution
+
+```{r}
+gain_3points_unif <- function(min, max, g){
+prob = 1-((4-4*g)/(3-2*g))
+return(prob)
+}
+```
+
+```{r}
+df <- data.frame(
+x <- seq(0.5, 1, 0.01),
+y1 <- gain_3points_unif(0,1,x)
+)
+colors <- c("Uniform(0,1)" = "#56B4E9")
+ggplot(df, aes(x)) +
+geom_line(aes(y=y1, color = "Uniform(0,1)")) +
+labs(x = "Gain (g)",
+y = "P(E)",
+colour = "Legend",
+title = "Uniform Distribution") +
+scale_color_manual(values = colors) +
+theme_bw()
+```
+
+## Exponential Distribution
+
+```{r}
+gain_3points_exp <- function(rate, g){
+  
+  min <- 0
+  max <- qexp(0.999, rate) 
+
+  left_ep  <- 1/(3-2*g) * (min + 2*max - 2*g*max)
+  right_ep <- 1/(3-2*g) * (2*min - 2*g*min + max)
+
+  term1 <- pexp(left_ep, rate) - pexp(min, rate)
+  term2 <- pexp(max, rate) - pexp(right_ep, rate)
+
+  num   <- term1 + term2
+  denom <- pexp(max, rate) - pexp(min, rate)
+
+  prob_int <- 1 - (num/denom)
+  return(prob_int)
+}
+```
+
+```{r}
+x <- seq(0.5, 1, 0.01)
+df <- data.frame(
+  x  = x,
+  y1 = gain_3points_exp(rate = 1, g = x)   
+)
+
+
+colors <- c("Exponential" = "#009E73")
+
+ggplot(df, aes(x)) +
+  geom_line(aes(y = y1, color = "Exponential")) +
+  labs(x = "Gain (g)",
+       y = "P(E)",
+       colour = "Legend",
+       title = "Exponential Distribution (Rate = 1)") +
+  scale_color_manual(values = colors) +
+  theme_bw()
+
+```
+
+## Gamma Distribution
+
+```{r}
+gain_3points_gamma <- function(shape, rate, g){
+  min <- 0
+  max <- qgamma(0.999, shape=shape, rate=rate)
+  
+
+  left_ep  <- 1/(3 - 2*g) * (min + 2*max - 2*g*max)
+  right_ep <- 1/(3 - 2*g) * (2*min - 2*g*min + max)
+  
+
+  term1 <- pgamma(left_ep, shape=shape, rate=rate) - pgamma(min, shape=shape, rate=rate)
+  term2 <- pgamma(max, shape=shape, rate=rate) - pgamma(right_ep, shape=shape, rate=rate)
+  
+  num   <- term1 + term2
+  denom <- pgamma(max, shape=shape, rate=rate) - pgamma(min, shape=shape, rate=rate)
+  
+  prob_int <- 1 - (num/denom)
+  return(prob_int)
+}
+```
+
+```{r}
+
+x <- seq(0.5, 1, 0.01)
+df <- data.frame(
+  x  = x,
+  y1 = gain_3points_gamma(shape = 2, rate = 1, g = x)
+)
+
+colors <- c("Gamma(2,1)" = "#0072b2")
+
+ggplot(df, aes(x)) +
+  geom_line(aes(y = y1, color = "Gamma(2,1)")) +
+  labs(x = "Gain (g)",
+       y = "P(E)",
+       colour = "Legend",
+       title = "Gamma Distribution (Shape = 2, Rate = 1)") + 
+  scale_color_manual(values = colors) +
+  theme_bw()
+
+```
+
+## Log Normal Distribution
+
+```{r}
+gain_3points_lnorm <- function(g){
+min <- 0
+max <- qlnorm(0.999)
+left_ep = 1/(3-2*g)*(min+2*max-2*g*max)
+right_ep = 1/(3-2*g)*(2*min-2*g*min+max)
+term1 = plnorm(left_ep)-plnorm(min)
+term2 = plnorm(max)-plnorm(right_ep)
+num = term1 + term2
+denom = plnorm(max)-plnorm(min)
+prob_int = 1 - (num/denom)
+return(prob_int)
+}
+```
+
+```{r}
+df <- data.frame(
+x <- seq(0.5, 1, 0.01),
+y1 <- gain_3points_lnorm(x)
+)
+colors <- c("LNorm(0,1)" = "#D55E00")
+ggplot(df, aes(x)) +
+geom_line(aes(y=y1, color = "LNorm(0,1)")) +
+labs(x = "Gain (g)",
+y = "P(E)",
+colour = "Legend",
+title = "Log Normal Distribution")  +
+scale_color_manual(values = colors) +
+theme_bw()
+```
+
+## Beta Distribution
+
+```{r}
+gain_3points_beta <- function(shape1, shape2, g){
+min <- 0
+max <- 1
+left_ep = 1/(3-2*g)*(min+2*max-2*g*max)
+right_ep = 1/(3-2*g)*(2*min-2*g*min+max)
+term1 = pbeta(left_ep, shape1 = shape1, shape2 = shape2)-pbeta(min, shape1 = shape1, shape2 = shape2)
+term2 = pbeta(max, shape1 = shape1, shape2 = shape2)- pbeta(right_ep, shape1 = shape1, shape2 = shape2)
+num = term1 + term2
+denom = pbeta(max, shape1 = shape1, shape2 = shape2)-pbeta(min, shape1 = shape1, shape2 = shape2)
+prob_int = 1 - (num/denom)
+return(prob_int)
+}
+```
+
+```{r}
+df <- data.frame(
+x <- seq(0.5, 1, 0.01),
+y1 <- gain_3points_beta(shape1 = 2, shape2 = 2, g = x)
+)
+colors <- c("Beta(2,2)" = "#CC79A7")
+ggplot(df, aes(x)) +
+geom_line(aes(y=y1, color = "Beta(2,2)")) +
+labs(x = "Gain (g)",
+y = "P(E)",
+colour = "Legend",
+title = "Beta Distribution (Alpha = 2, Beta = 2)") +
+scale_color_manual(values = colors) +
+theme_bw()
+```
+
+```{r}
+
+x <- seq(0.5, 1, 0.01)
+
+
+df_all <- bind_rows(
+  data.frame(
+    x = x,
+    y = gain_3points_norm(x),
+    dist = "Normal"
+  ),
+  data.frame(
+    x = x,
+    y = gain_3points_unif(0,1,x),
+    dist = "Uniform"
+  ),
+  data.frame(
+    x = x,
+    y = gain_3points_exp(rate = 1, g = x),
+    dist = "Exponential"
+  ),
+  data.frame(
+    x = x,
+    y = gain_3points_gamma(shape = 2, rate = 1, g = x),
+    dist = "Gamma"
+  )
+)
+
+#Colors
+dist_colors <- c(
+  "Normal"     = "#E69F00",
+  "Uniform"    = "#56B4E9",
+  "Exponential"  = "#009E73",
+  "Gamma"      = "#0072B2"
+)
+
+#Combined Plot
+plot_all <- ggplot(df_all, aes(x, y, color = dist)) +
+  geom_line(size = 1) +
+  labs(x = "Gain (g)",
+       y = "P(E)",
+       color = "Distribution") +
+  scale_color_manual(values = dist_colors) +
+  theme_bw() +
+  theme(legend.position = "right")
+
+plot_all
+
+```
